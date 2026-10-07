@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI SHIFT｜LINE共有テスト</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;margin:0;background:#f7f8fa;color:#111}
+main{max-width:720px;margin:60px auto;padding:32px;background:#fff;border:1px solid #ddd;border-radius:16px}
+h1{margin:0 0 10px;font-size:28px}
+p{line-height:1.7;color:#444}
+button{width:100%;padding:16px 18px;border:0;border-radius:12px;background:#06c755;color:#fff;font-size:17px;font-weight:700;cursor:pointer}
+button:disabled{opacity:.5;cursor:default}
+.status{margin-top:16px;padding:12px 14px;background:#f1f3f5;border-radius:10px;white-space:pre-wrap;word-break:break-word}
+img{width:100%;margin-top:22px;border:1px solid #ddd;border-radius:10px}
+small{display:block;margin-top:16px;color:#777}
+</style>
+</head>
+<body>
+<main>
+<h1>AI SHIFT｜LINE共有テスト</h1>
+<p>AI SHIFT本体を使わず、固定画像1枚だけをLINEのShare Target Pickerへ渡す最小テストです。</p>
+<button id="shareBtn" type="button">LINEで固定画像を共有する</button>
+<div id="status" class="status">待機中</div>
+<img src="/liff-test-image.png" alt="LINE共有テスト画像">
+<small>このテストが成功してから、AI SHIFT本体の「画像で共有 → LINEで送る」へ組み込みます。</small>
+</main>
+<script>
+const LIFF_ID='2011900994-BRz7XUyB';
+let initPromise=null;
+const statusEl=document.getElementById('status');
+const btn=document.getElementById('shareBtn');
+function setStatus(text){statusEl.textContent=text;}
+async function ensureLiff(){
+  if(!window.liff)throw new Error('LIFF SDKを読み込めませんでした');
+  if(!initPromise)initPromise=liff.init({liffId:LIFF_ID});
+  await initPromise;
+  if(!liff.isLoggedIn()){
+    setStatus('LINEログインへ移動します…');
+    liff.login({redirectUri:location.href});
+    throw new Error('LINEログイン画面へ移動しました');
+  }
+  if(!liff.isApiAvailable('shareTargetPicker'))throw new Error('この環境ではShare Target Pickerが利用できません');
+  setStatus('LIFF初期化・ログイン確認OK');
+}
+async function shareFixedImage(){
+  btn.disabled=true;
+  try{
+    await ensureLiff();
+    const imageUrl=location.origin+'/liff-test-image.png';
+    setStatus('Share Target Pickerを起動しています…');
+    const result=await liff.shareTargetPicker([{type:'image',originalContentUrl:imageUrl,previewImageUrl:imageUrl}]);
+    setStatus(result===undefined?'送信先選択画面を閉じました':'LINEへの共有が完了しました');
+  }catch(e){
+    console.error(e);
+    const message=String(e?.message||e);
+    if(!message.includes('LINEログイン画面へ移動しました'))setStatus('エラー:\n'+message);
+  }finally{btn.disabled=false;}
+}
+btn.addEventListener('click',shareFixedImage);
+</script>
+</body>
+</html>
